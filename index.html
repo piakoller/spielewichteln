@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spiele-Wichteln</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23e3a21a' d='M16 2.5a5 5 0 0 1 5 5c0 1.6-.7 2.9-1.8 3.8 3.9.8 10.3 2.6 10.3 5.7 0 1.6-2 2.1-4.6 1.6l3.5 8.4c.3.8-.2 1.5-1 1.5h-6.6L16 22.2l-4.8 6.3H4.6c-.8 0-1.3-.7-1-1.5l3.5-8.4C4.5 19.1 2.5 18.6 2.5 17c0-3.1 6.4-4.9 10.3-5.7A5 5 0 0 1 11 7.5a5 5 0 0 1 5-5Z'/%3E%3C/svg%3E">
+<style>
+/* Layout: a game-box lid header, then one column of panels. */
+:root {
+  --bg: #eef2ee; --surface: #ffffff; --sunk: #e3e9e4; --ink: #16232a; --muted: #56656c; --line: #ccd5cf;
+  --accent: #e3a21a; --accent-ink: #2a1d00; --red: #c4412d; --teal: #1d6b66; --teal-soft: #d6ebe8;
+  --font-display: "Bowlby One", "Arial Black", Impact, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f171b; --surface: #172228; --sunk: #1c2a31; --ink: #e6ede9; --muted: #98a7ad; --line: #2b3b43;
+    --accent: #f0b632; --accent-ink: #231800; --red: #e36a55; --teal: #4fb1a7; --teal-soft: #173533;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+[hidden] { display: none !important; }
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 24px; }
+h1, h2 { font-family: var(--font-display); font-weight: 400; line-height: 1.05; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 6vw, 44px); }
+h2 { font-size: 20px; letter-spacing: .02em; }
+p { margin: 0; }
+a { color: var(--teal); }
+.muted { color: var(--muted); }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--teal); }
+.lid { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.lid .text { display: grid; gap: 6px; min-width: 0; flex: 1 1 260px; }
+.meeple { width: 30px; height: 30px; flex: none; }
+.meeple.big { width: 60px; height: 60px; }
+section.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+label { font-size: 13px; font-weight: 600; color: var(--muted); display: grid; gap: 4px; }
+input, select, textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+textarea { resize: vertical; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.inline > input { flex: 1 1 200px; width: auto; }
+button { font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 8px 14px; }
+button:hover:not(:disabled) { border-color: var(--teal); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-family: var(--font-display); font-weight: 400; letter-spacing: .03em; padding: 12px 22px; font-size: 16px; }
+button.small { padding: 5px 10px; font-size: 13px; }
+button.danger { color: var(--red); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 0; list-style: none; }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--teal-soft); border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 500; }
+.chip button { border: 0; background: transparent; color: var(--muted); padding: 0 2px 0 6px; font-size: 15px; line-height: 1; }
+.chip button:hover { color: var(--red); }
+.notice { border-radius: 10px; padding: 10px 14px; font-size: 14px; display: grid; gap: 8px; }
+.notice.warn { background: color-mix(in srgb, var(--red) 14%, transparent); }
+.notice.ok { background: var(--teal-soft); }
+.linkbox { font-family: var(--font-mono); font-size: 12.5px; background: var(--sunk); border-radius: 8px; padding: 8px 10px; overflow-wrap: anywhere; user-select: all; }
+.people { display: grid; gap: 8px; }
+.person { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.person .name { font-weight: 700; overflow-wrap: anywhere; }
+.person .meta { font-size: 13px; color: var(--muted); }
+.person .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.person .wide { grid-column: 1 / -1; }
+.couple { color: var(--red); font-weight: 700; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.5em; }
+.envelope { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 28px 22px; display: grid; gap: 14px; text-align: center; justify-items: center; }
+.envelope .big { font-family: var(--font-display); font-size: clamp(34px, 9vw, 52px); line-height: 1; color: var(--teal); overflow-wrap: anywhere; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.fact { background: var(--sunk); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; }
+.verdict { font-weight: 700; border-radius: 10px; padding: 10px 12px; }
+.verdict.has { background: color-mix(in srgb, var(--red) 16%, transparent); }
+.verdict.free { background: var(--teal-soft); }
+.loading { color: var(--muted); padding: 40px 0; text-align: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .reveal-in { animation: pop .45s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes pop { from { transform: scale(.85) rotate(-3deg); opacity: .3; } to { transform: none; opacity: 1; } }
+}
+footer { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="meeple" viewBox="0 0 32 32"><path d="M16 2.5a5 5 0 0 1 5 5c0 1.6-.7 2.9-1.8 3.8 3.9.8 10.3 2.6 10.3 5.7 0 1.6-2 2.1-4.6 1.6l3.5 8.4c.3.8-.2 1.5-1 1.5h-6.6L16 22.2l-4.8 6.3H4.6c-.8 0-1.3-.7-1-1.5l3.5-8.4C4.5 19.1 2.5 18.6 2.5 17c0-3.1 6.4-4.9 10.3-5.7A5 5 0 0 1 11 7.5a5 5 0 0 1 5-5Z"/></symbol>
+</svg>
+<main class="wrap" id="app"><p class="loading">Lädt …</p></main>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  const CFG = window.WICHTEL_CONFIG || {};
+  const CONFIGURED = CFG.supabaseUrl && !/DEIN-/.test(CFG.supabaseUrl + CFG.supabaseKey);
+  const COLORS = ["#d9442f", "#2f6fd9", "#e3a21a", "#2f9a5b", "#8a4fd0", "#1d8f8a", "#d9662f", "#c2397f", "#5b6b2f", "#3d4fa8"];
+  const STORE = "spielewichteln.mine";
+  const BASE = location.origin + location.pathname;
+  const app = document.getElementById("app");
+
+  // ---------- backend ----------
+  async function rpc(fn, args) {
+    const headers = { apikey: CFG.supabaseKey, "Content-Type": "application/json" };
+    if (!String(CFG.supabaseKey).startsWith("sb_")) headers.Authorization = "Bearer " + CFG.supabaseKey;
+    let res;
+    try {
+      res = await fetch(CFG.supabaseUrl.replace(/\/$/, "") + "/rest/v1/rpc/" + fn, { method: "POST", headers, body: JSON.stringify(args || {}) });
+    } catch (e) { throw new Error("Keine Verbindung zur Datenbank. Bist du online?"); }
+    const txt = await res.text();
+    let data = null; try { data = txt ? JSON.parse(txt) : null; } catch (e) { data = txt; }
+    if (!res.ok) throw new Error((data && data.message) || "Die Datenbank hat einen Fehler gemeldet (" + res.status + ").");
+    return data;
+  }
+
+  // ---------- local memory of my links ----------
+  function mine() { try { const m = JSON.parse(localStorage.getItem(STORE)); if (m && m.me && m.admin) return m; } catch (e) {} return { me: {}, admin: {} }; }
+  function remember(kind, token, info) { const m = mine(); m[kind][token] = info; try { localStorage.setItem(STORE, JSON.stringify(m)); } catch (e) {} }
+  function forget(kind, token) { const m = mine(); delete m[kind][token]; try { localStorage.setItem(STORE, JSON.stringify(m)); } catch (e) {} }
+
+  // ---------- helpers ----------
+  const link = (k, v) => BASE + "?" + k + "=" + encodeURIComponent(v);
+  const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  function owns(list, q) { const n = norm(q); if (n.length < 3) return null; return list.find(g => { const m = norm(g); return m && (m.includes(n) || n.includes(m)); }) || null; }
+  function fmtDate(d) { if (!d) return ""; const t = new Date(d + "T12:00:00"); return isNaN(t) ? d : t.toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" }); }
+  function el(tag, attrs = {}, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === "class") e.className = v;
+      else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+      else if (v === true) e.setAttribute(k, "");
+      else if (v !== false && v != null) e.setAttribute(k, v);
+    }
+    for (const k of kids.flat()) if (k != null && k !== false) e.append(k.nodeType ? k : document.createTextNode(k));
+    return e;
+  }
+  function meeple(c, big) {
+    const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("class", "meeple" + (big ? " big" : "")); s.setAttribute("viewBox", "0 0 32 32"); s.setAttribute("aria-hidden", "true");
+    const u = document.createElementNS("http://www.w3.org/2000/svg", "use"); u.setAttribute("href", "#meeple"); u.setAttribute("fill", c); s.append(u);
+    return s;
+  }
+  function header(eyebrow, title, text) {
+    return el("header", { class: "lid" }, meeple("var(--accent)", true),
+      el("div", { class: "text" }, el("span", { class: "eyebrow" }, eyebrow), el("h1", {}, title), text ? el("p", { class: "muted" }, text) : null));
+  }
+  async function copy(text, btn) {
+    const old = btn.textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = "Kopiert"; }
+    catch (e) { btn.textContent = "Bitte manuell kopieren"; }
+    setTimeout(() => (btn.textContent = old), 1500);
+  }
+  function linkRow(label, url, message) {
+    const b1 = el("button", { class: "small" }, "Link kopieren");
+    b1.onclick = () => copy(url, b1);
+    const kids = [el("div", { class: "linkbox" }, url), el("div", { class: "inline" }, b1)];
+    if (message) { const b2 = el("button", { class: "small" }, "Nachricht kopieren"); b2.onclick = () => copy(message, b2); kids[1].append(b2); }
+    return el("div", { style: "display:grid;gap:6px" }, el("label", {}, label), ...kids);
+  }
+  // Two-step button: the first click arms, the second within 4 s acts.
+  function armed(label, armedLabel, action, cls) {
+    const b = el("button", { class: cls || "small danger" }, label); let t;
+    b.onclick = () => {
+      if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = armedLabel; t = setTimeout(() => { b.dataset.armed = ""; b.textContent = label; }, 4000); return; }
+      clearTimeout(t); action(b);
+    };
+    return b;
+  }
+  function fail(msg, retry) {
+    app.replaceChildren(header("Spiele-Wichteln", "Das hat nicht geklappt"),
+      el("div", { class: "notice warn" }, el("p", {}, msg),
+        el("div", { class: "inline" }, retry ? el("button", { onclick: retry }, "Nochmals versuchen") : null, el("a", { href: BASE }, "Zur Startseite"))));
+  }
+  function loading() { app.replaceChildren(el("p", { class: "loading" }, "Lädt …")); }
+
+  // ---------- home ----------
+  function renderHome() {
+    document.title = "Spiele-Wichteln";
+    app.replaceChildren(header("Gesellschaftsspiele wichteln", "Spiele-Wichteln",
+      "Erstell eine Runde und schick den Einladungslink an alle. Jede Person trägt selbst ein, welche Spiele sie schon hat. Paare ziehen sich nie gegenseitig."));
+
+    if (!CONFIGURED) {
+      app.append(el("div", { class: "notice warn" }, el("p", {}, "Die Seite ist noch nicht mit der Datenbank verbunden. Trag in config.js die Supabase-Adresse und den Key ein (siehe README).")));
+      return;
+    }
+
+    const m = mine();
+    const rounds = [
+      ...Object.entries(m.admin).map(([t, i]) => ({ url: link("admin", t), label: (i.title || "Runde") + " (Organisation)", kind: "admin", t })),
+      ...Object.entries(m.me).map(([t, i]) => ({ url: link("me", t), label: (i.title || "Runde") + " (als " + (i.name || "?") + ")", kind: "me", t }))
+    ];
+    if (rounds.length) {
+      app.append(el("section", { class: "panel" }, el("h2", {}, "Deine Runden"),
+        el("div", { class: "people" }, rounds.map(r => el("div", { class: "person" }, meeple("var(--teal)"),
+          el("a", { class: "name", href: r.url }, r.label),
+          el("div", { class: "acts" }, armed("Vergessen", "Wirklich?", () => { forget(r.kind, r.t); renderHome(); }, "small")))))));
+    }
+
+    const title = el("input", { id: "c-title", value: "Spiele-Wichteln " + new Date().getFullYear() });
+    const budget = el("input", { id: "c-budget", placeholder: "z. B. 30 CHF" });
+    const date = el("input", { id: "c-date", type: "date" });
+    const status = el("p", { class: "status" });
+    const go = el("button", { class: "primary" }, "Runde erstellen");
+    go.onclick = async () => {
+      go.disabled = true; status.textContent = "Wird erstellt …";
+      try {
+        const r = await rpc("create_round", { p_title: title.value, p_budget: budget.value, p_date: date.value || null });
+        remember("admin", r.admin_token, { title: title.value });
+        location.href = link("admin", r.admin_token);
+      } catch (e) { status.textContent = e.message; go.disabled = false; }
+    };
+    app.append(el("section", { class: "panel" }, el("h2", {}, "Neue Runde"),
+      el("label", {}, "Name der Runde", title),
+      el("div", { class: "row" }, el("label", {}, "Budget", budget), el("label", {}, "Bescherung am", date)),
+      el("div", { class: "inline" }, go), status));
+  }
+
+  // ---------- join ----------
+  async function renderJoin(code) {
+    loading();
+    let info;
+    try { info = await rpc("round_info", { p_invite: code }); } catch (e) { return fail(e.message, () => renderJoin(code)); }
+    const r = info.round;
+    document.title = r.title;
+    const known = Object.entries(mine().me).find(([, i]) => i.invite === code);
+    app.replaceChildren(header("Einladung", r.title, "Trag deinen Namen ein. Danach bekommst du deinen persönlichen Link, mit dem du deine Spiele einträgst und später siehst, wen du beschenkst."));
+    if (known) app.append(el("div", { class: "notice ok" }, el("p", {}, "Du bist in dieser Runde schon dabei als " + known[1].name + "."), el("a", { href: link("me", known[0]) }, "Zu deiner Seite")));
+    app.append(el("div", { class: "facts", style: "justify-content:flex-start" },
+      r.budget ? el("span", { class: "fact" }, "Budget " + r.budget) : null,
+      r.date ? el("span", { class: "fact" }, "Bescherung " + fmtDate(r.date)) : null,
+      el("span", { class: "fact" }, info.names.length + " dabei")));
+
+    if (r.drawn) { app.append(el("div", { class: "notice warn" }, el("p", {}, "In dieser Runde wurde schon gezogen. Neue Personen können erst beitreten, wenn die Organisation die Ziehung zurücksetzt."))); return; }
+
+    const name = el("input", { id: "j-name", placeholder: "Dein Name", autocomplete: "given-name" });
+    const status = el("p", { class: "status" });
+    const go = el("button", { class: "primary" }, "Mitmachen");
+    const submit = async () => {
+      go.disabled = true; status.textContent = "";
+      try {
+        const res = await rpc("join_round", { p_invite: code, p_name: name.value });
+        remember("me", res.token, { name: name.value.trim(), title: r.title, invite: code });
+        location.href = link("me", res.token) + "&neu=1";
+      } catch (e) { status.textContent = e.message; go.disabled = false; }
+    };
+    go.onclick = submit;
+    name.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+    app.append(el("section", { class: "panel" }, el("h2", {}, "Mitmachen"),
+      el("div", { class: "inline" }, name, go), status,
+      info.names.length ? el("div", { style: "display:grid;gap:6px" }, el("label", {}, "Schon dabei"), el("ul", { class: "chips" }, info.names.map(n => el("li", { class: "chip" }, n)))) : null));
+  }
+
+  // ---------- my page ----------
+  async function renderMe(token, fresh) {
+    loading();
+    let d;
+    try { d = await rpc("me", { p_token: token }); } catch (e) { return fail(e.message, () => renderMe(token, fresh)); }
+    remember("me", token, { name: d.name, title: d.round.title, invite: d.round.invite_code });
+    document.title = d.round.title;
+    const r = d.round;
+    app.replaceChildren(header(r.title, "Hallo " + d.name + "!", null));
+    const facts = el("div", { class: "facts", style: "justify-content:flex-start" },
+      r.budget ? el("span", { class: "fact" }, "Budget " + r.budget) : null,
+      r.date ? el("span", { class: "fact" }, "Bescherung " + fmtDate(r.date)) : null);
+    app.append(facts);
+
+    if (fresh) app.append(el("div", { class: "notice ok" },
+      el("p", {}, "Du bist dabei. Das hier ist dein persönlicher Link. Speichere ihn (Lesezeichen oder an dich selbst schicken), damit du später sehen kannst, wen du beschenkst. Gib ihn niemandem weiter."),
+      linkRow("Dein persönlicher Link", link("me", token))));
+
+    // target
+    if (r.drawn && d.target) app.append(targetCard(d.target));
+    else app.append(el("div", { class: "notice ok" }, el("p", {}, "Es wurde noch nicht gezogen. Sobald die Organisation zieht, siehst du hier, wen du beschenkst.")));
+
+    // my games
+    const games = d.games.slice();
+    const status = el("p", { class: "status" });
+    let saveTimer;
+    async function save() {
+      status.textContent = "Speichert …";
+      try { await rpc("update_me", { p_token: token, p_games: games, p_wish: wish.value }); status.textContent = "Gespeichert"; }
+      catch (e) { status.textContent = e.message; }
+    }
+    const chips = el("ul", { class: "chips" });
+    function drawChips() {
+      chips.replaceChildren();
+      if (!games.length) chips.append(el("li", { class: "muted", style: "font-size:13px;font-style:italic" }, "Noch keine Spiele eingetragen"));
+      games.forEach((g, i) => chips.append(el("li", { class: "chip" }, g, el("button", { "aria-label": g + " entfernen", onclick: () => { games.splice(i, 1); drawChips(); save(); } }, "×"))));
+    }
+    drawChips();
+    const gameIn = el("input", { id: "m-game", placeholder: "z. B. Catan, Azul" });
+    function addGame() {
+      const add = gameIn.value.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+      add.forEach(g => { if (!games.some(x => norm(x) === norm(g))) games.push(g); });
+      gameIn.value = ""; if (add.length) { drawChips(); save(); } gameIn.focus();
+    }
+    gameIn.addEventListener("keydown", e => { if (e.key === "Enter") addGame(); });
+    const wish = el("textarea", { id: "m-wish", rows: "3", placeholder: "z. B. mag kooperative Spiele, spielt oft zu zweit, keine langen Regelwerke" }, d.wish || "");
+    wish.addEventListener("input", () => { clearTimeout(saveTimer); status.textContent = ""; saveTimer = setTimeout(save, 900); });
+
+    app.append(el("section", { class: "panel" },
+      el("div", { class: "panel-head" }, el("h2", {}, "Diese Spiele habe ich schon"), el("span", { class: "muted" }, games.length ? "" : "")),
+      el("p", { class: "muted" }, "Wer dich beschenkt, sieht diese Liste und deine Hinweise. Du kannst sie auch nach der Ziehung noch ergänzen."),
+      chips,
+      el("div", { class: "inline" }, gameIn, el("button", { onclick: addGame }, "Hinzufügen")),
+      el("label", {}, "Wünsche und Hinweise", wish),
+      status));
+
+    // partner
+    const sel = el("select", { id: "m-partner", disabled: r.drawn },
+      el("option", { value: "" }, "Ich bin ohne Partner/in dabei"),
+      d.others.map(o => el("option", { value: o.id, selected: d.partner_id === o.id }, o.name)));
+    const pStatus = el("p", { class: "status" });
+    sel.onchange = async () => {
+      pStatus.textContent = "Speichert …";
+      try { await rpc("set_partner", { p_token: token, p_partner: sel.value || null }); pStatus.textContent = "Gespeichert"; }
+      catch (e) { pStatus.textContent = e.message; }
+    };
+    app.append(el("section", { class: "panel" }, el("h2", {}, "Partner oder Partnerin"),
+      el("p", { class: "muted" }, "Ihr zieht euch dann nicht gegenseitig. Es reicht, wenn eine Person von euch das einstellt. Ist dein Partner noch nicht in der Liste, ist er noch nicht beigetreten."),
+      el("label", {}, "Mein Partner / meine Partnerin", sel), pStatus,
+      r.drawn ? el("p", { class: "muted" }, "Nach der Ziehung lässt sich das nicht mehr ändern.") : null));
+
+    if (!fresh) app.append(el("section", { class: "panel" }, linkRow("Dein persönlicher Link (nicht weitergeben)", link("me", token))));
+    app.append(el("footer", {}, el("a", { href: BASE }, "Startseite")));
+  }
+
+  function targetCard(t) {
+    const box = el("div", { style: "display:grid;gap:16px" });
+    const env = el("div", { class: "envelope" }, el("span", { class: "eyebrow" }, "Die Ziehung ist da"),
+      el("p", { class: "muted" }, "Schau allein auf den Bildschirm."));
+    const open = el("button", { class: "primary" }, "Umschlag öffnen");
+    env.append(open); box.append(env);
+    open.onclick = () => {
+      open.remove();
+      env.append(el("div", { class: "reveal-in", style: "display:grid;gap:8px;justify-items:center" },
+        el("p", {}, "Du beschenkst"), el("div", { class: "big" }, t.name), t.wish ? el("p", {}, "Hinweis: " + t.wish) : null));
+      const list = t.games || [];
+      const out = el("div", {});
+      const q = el("input", { id: "m-check", placeholder: "Spielname eingeben" });
+      q.addEventListener("input", () => {
+        const v = q.value.trim();
+        if (norm(v).length < 3) return out.replaceChildren();
+        const hit = owns(list, v);
+        out.replaceChildren(hit ? el("div", { class: "verdict has" }, t.name + " hat schon " + hit + ". Such lieber etwas anderes.")
+                                : el("div", { class: "verdict free" }, "Steht nicht auf der Liste. Sicher ist es nicht, aber gute Chancen."));
+      });
+      box.append(el("section", { class: "panel reveal-in" }, el("h2", {}, "Das hat " + t.name + " schon"),
+        list.length ? el("ul", { class: "chips" }, list.map(g => el("li", { class: "chip" }, g))) : el("p", { class: "muted" }, "Noch keine Spiele eingetragen. Schau später nochmals vorbei."),
+        el("label", {}, "Hat " + t.name + " das schon?", q), out));
+    };
+    return box;
+  }
+
+  // ---------- organizer ----------
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function solve(people, noPairs) {
+    const ids = shuffle(people.map(p => p.id));
+    const partner = Object.fromEntries(people.map(p => [p.id, p.partner_id]));
+    const out = {}, used = new Set();
+    let steps = 0;
+    function go(i) {
+      if (++steps > 200000) return false;
+      if (i === ids.length) return true;
+      const g = ids[i];
+      for (const r of shuffle(ids.slice())) {
+        if (r === g || used.has(r) || partner[g] === r) continue;
+        if (noPairs && out[r] === g) continue;
+        out[g] = r; used.add(r);
+        if (go(i + 1)) return true;
+        delete out[g]; used.delete(r);
+      }
+      return false;
+    }
+    return go(0) ? out : null;
+  }
+
+  async function renderAdmin(token, note) {
+    loading();
+    let d;
+    try { d = await rpc("admin_overview", { p_admin: token }); } catch (e) { return fail(e.message, () => renderAdmin(token)); }
+    const r = d.round, people = d.people;
+    remember("admin", token, { title: r.title });
+    document.title = r.title + " · Organisation";
+    const byId = id => people.find(p => p.id === id);
+    const reload = n => renderAdmin(token, n);
+
+    app.replaceChildren(header("Organisation", r.title, "Diese Seite ist nur für dich. Schick den Einladungslink an alle, warte bis alle ihre Spiele eingetragen haben, und zieh dann."));
+    if (note) app.append(el("div", { class: "notice " + (note.warn ? "warn" : "ok") }, el("p", {}, note.text)));
+
+    // invite
+    const inviteUrl = link("join", r.invite_code);
+    app.append(el("section", { class: "panel" }, el("h2", {}, "Einladen"),
+      linkRow("Einladungslink für alle", inviteUrl,
+        "Wir wichteln Gesellschaftsspiele! Trag dich hier ein und notier, welche Spiele du schon hast: " + inviteUrl),
+      linkRow("Dein Organisations-Link (gut aufbewahren, nicht teilen)", link("admin", token))));
+
+    // settings
+    const title = el("input", { id: "a-title", value: r.title });
+    const budget = el("input", { id: "a-budget", value: r.budget || "", placeholder: "z. B. 30 CHF" });
+    const date = el("input", { id: "a-date", type: "date", value: r.date || "" });
+    const sStatus = el("p", { class: "status" });
+    const sBtn = el("button", {}, "Speichern");
+    sBtn.onclick = async () => {
+      try { await rpc("admin_update_round", { p_admin: token, p_title: title.value, p_budget: budget.value, p_date: date.value || null }); sStatus.textContent = "Gespeichert"; }
+      catch (e) { sStatus.textContent = e.message; }
+    };
+    app.append(el("section", { class: "panel" }, el("h2", {}, "Die Runde"),
+      el("label", {}, "Name", title), el("div", { class: "row" }, el("label", {}, "Budget", budget), el("label", {}, "Bescherung am", date)),
+      el("div", { class: "inline" }, sBtn), sStatus));
+
+    // people
+    const list = el("div", { class: "people" });
+    if (!people.length) list.append(el("p", { class: "muted" }, "Noch niemand beigetreten. Schick den Einladungslink herum."));
+    people.forEach((p, i) => {
+      const partner = p.partner_id && byId(p.partner_id);
+      const details = el("div", { class: "wide", hidden: true });
+      const sel = el("select", { disabled: r.drawn },
+        el("option", { value: "" }, "kein Partner, keine Partnerin"),
+        people.filter(o => o.id !== p.id).map(o => el("option", { value: o.id, selected: p.partner_id === o.id }, o.name)));
+      sel.onchange = async () => {
+        try { await rpc("admin_set_partner", { p_admin: token, p_person: p.id, p_partner: sel.value || null }); reload(); }
+        catch (e) { reload({ warn: true, text: e.message }); }
+      };
+      const linkBtn = el("button", { class: "small" }, "Persönlichen Link kopieren");
+      linkBtn.onclick = () => copy(link("me", p.token), linkBtn);
+      details.append(el("div", { style: "display:grid;gap:10px;padding-top:6px" },
+        el("label", {}, "Partner/in", sel),
+        el("div", { class: "inline" }, linkBtn,
+          r.drawn ? null : armed("Entfernen", "Wirklich entfernen?", async () => {
+            try { await rpc("admin_remove", { p_admin: token, p_person: p.id }); reload(); } catch (e) { reload({ warn: true, text: e.message }); }
+          })),
+        el("p", { class: "muted", style: "font-size:13px" }, "Den persönlichen Link nur schicken, wenn die Person ihren verloren hat. Wer ihn öffnet, sieht deren Ziehung.")));
+      const toggle = el("button", { class: "small", "aria-expanded": "false" }, "Bearbeiten");
+      toggle.onclick = () => { details.hidden = !details.hidden; toggle.setAttribute("aria-expanded", String(!details.hidden)); };
+      list.append(el("div", { class: "person" }, meeple(COLORS[i % COLORS.length]),
+        el("div", { style: "min-width:0" }, el("div", { class: "name" }, p.name),
+          el("div", { class: "meta" }, p.games + (p.games === 1 ? " Spiel" : " Spiele") + " eingetragen",
+            partner ? el("span", { class: "couple" }, " · ♥ " + partner.name) : null)),
+        el("div", { class: "acts" }, toggle), details));
+    });
+    app.append(el("section", { class: "panel" },
+      el("div", { class: "panel-head" }, el("h2", {}, "Mitspielende"), el("span", { class: "muted" }, people.length + (people.length === 1 ? " Person" : " Personen"))),
+      list,
+      el("div", { class: "inline" }, el("button", { class: "small", onclick: () => reload() }, "Aktualisieren"))));
+
+    // draw
+    const draw = el("section", { class: "panel" }, el("h2", {}, "Ziehen"));
+    if (r.drawn) {
+      draw.append(el("div", { class: "notice ok" }, el("p", {}, "Es ist gezogen. Alle sehen auf ihrem persönlichen Link, wen sie beschenken. Das Ergebnis bleibt auch vor dir geheim.")),
+        el("div", { class: "inline" }, armed("Ziehung zurücksetzen", "Wirklich? Alle Zuteilungen gehen verloren", async () => {
+          try { await rpc("admin_reset_draw", { p_admin: token }); reload({ text: "Ziehung zurückgesetzt. Jetzt können wieder Leute beitreten und Paare geändert werden." }); }
+          catch (e) { reload({ warn: true, text: e.message }); }
+        })));
+    } else {
+      const noPairs = el("input", { type: "checkbox", id: "a-nopairs", checked: true, style: "width:auto" });
+      const go = el("button", { class: "primary", disabled: people.length < 3 }, "Wichtel ziehen");
+      go.onclick = async () => {
+        go.disabled = true;
+        let res = solve(people, noPairs.checked), relaxed = false;
+        if (!res && noPairs.checked) { res = solve(people, false); relaxed = !!res; }
+        if (!res) return reload({ warn: true, text: "Mit diesen Paaren geht keine Ziehung auf, zum Beispiel bei drei Personen, von denen zwei ein Paar sind. Ladet noch jemanden ein oder löst ein Paar." });
+        try {
+          await rpc("admin_save_draw", { p_admin: token, p_draw: res });
+          reload({ text: relaxed ? "Gezogen. Ohne Gegenseitigkeit ging es nicht auf, deshalb beschenken sich zwei Personen gegenseitig. Paare ziehen sich trotzdem nicht." : "Gezogen! Sag allen, dass sie ihren persönlichen Link öffnen sollen." });
+        } catch (e) { reload({ warn: true, text: e.message }); }
+      };
+      const without = people.filter(p => p.games === 0).map(p => p.name);
+      draw.append(...[
+        without.length ? el("p", { class: "muted" }, "Noch keine Spiele eingetragen: " + without.join(", ") + ". Die Liste lässt sich auch nach der Ziehung noch ergänzen.") : null,
+        el("label", { style: "display:flex;gap:8px;align-items:center;color:var(--ink);font-weight:500" }, noPairs, "Keine Gegenseitigkeit (A beschenkt B und B beschenkt A)"),
+        el("div", { class: "inline" }, go),
+        people.length < 3 ? el("p", { class: "muted" }, "Für eine Ziehung braucht ihr mindestens drei Personen.") : null,
+        el("p", { class: "muted", style: "font-size:13px" }, "Nach der Ziehung kann niemand mehr beitreten und Paare lassen sich nicht mehr ändern, bis du die Ziehung zurücksetzt.")
+      ].filter(Boolean));
+    }
+    app.append(draw, el("footer", {}, el("a", { href: BASE }, "Startseite")));
+  }
+
+  // ---------- routing ----------
+  const q = new URLSearchParams(location.search);
+  if (!CONFIGURED && (q.has("join") || q.has("me") || q.has("admin"))) renderHome();
+  else if (q.get("admin")) renderAdmin(q.get("admin"));
+  else if (q.get("me")) {
+    const fresh = q.has("neu");
+    if (fresh) history.replaceState(null, "", link("me", q.get("me")));
+    renderMe(q.get("me"), fresh);
+  }
+  else if (q.get("join")) renderJoin(q.get("join"));
+  else renderHome();
+})();
+</script>
+</body>
+</html>

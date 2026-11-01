@@ -1,0 +1,7 @@
+{
+  "name": "spielewichteln-dev",
+  "private": true,
+  "description": "Lokaler Testserver: ersetzt Supabase durch eine lokale Postgres-Datenbank",
+  "scripts": { "start": "node server.js .." },
+  "dependencies": { "pg": "8.13.1" }
+}
