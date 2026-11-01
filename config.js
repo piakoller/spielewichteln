@@ -2,6 +2,6 @@
 // Der "anon"/"publishable" Key ist öffentlich gedacht und darf hier stehen.
 // Den "service_role"/"secret" Key NIE hier eintragen.
 window.WICHTEL_CONFIG = {
-  supabaseUrl: "https://DEIN-PROJEKT.supabase.co",
-  supabaseKey: "DEIN-ANON-ODER-PUBLISHABLE-KEY"
+  supabaseUrl: "https://sxspwwqqvcnloowvooiq.supabase.co",
+  supabaseKey: "sb_publishable_wJGnYOe2upBaAon6-C-avQ_ChZhDRhR"
 };
