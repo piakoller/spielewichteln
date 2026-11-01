@@ -227,14 +227,43 @@ footer { font-size: 13px; color: var(--muted); }
     const r = info.round;
     document.title = r.title;
     const known = Object.entries(mine().me).find(([, i]) => i.invite === code);
-    app.replaceChildren(header("Einladung", r.title, "Trag deinen Namen ein. Danach bekommst du deinen persönlichen Link, mit dem du deine Spiele einträgst und später siehst, wen du beschenkst."));
+    const open = info.people.filter(p => !p.claimed);
+    app.replaceChildren(header("Einladung", r.title, open.length
+      ? "Wähl deinen Namen. Danach siehst du deine persönliche Seite: dort trägst du deine Spiele ein und siehst, wen du beschenkst."
+      : "Trag deinen Namen ein. Danach bekommst du deinen persönlichen Link, mit dem du deine Spiele einträgst und später siehst, wen du beschenkst."));
     if (known) app.append(el("div", { class: "notice ok" }, el("p", {}, "Du bist in dieser Runde schon dabei als " + known[1].name + "."), el("a", { href: link("me", known[0]) }, "Zu deiner Seite")));
     app.append(el("div", { class: "facts", style: "justify-content:flex-start" },
       r.budget ? el("span", { class: "fact" }, "Budget " + r.budget) : null,
       r.date ? el("span", { class: "fact" }, "Bescherung " + fmtDate(r.date)) : null,
-      el("span", { class: "fact" }, info.names.length + " dabei")));
+      el("span", { class: "fact" }, info.people.length + " dabei")));
 
-    if (r.drawn) { app.append(el("div", { class: "notice warn" }, el("p", {}, "In dieser Runde wurde schon gezogen. Neue Personen können erst beitreten, wenn die Organisation die Ziehung zurücksetzt."))); return; }
+    // names entered by the organizer: each can be picked once
+    if (info.people.length) {
+      const pStatus = el("p", { class: "status" });
+      const pick = el("div", { class: "people" });
+      info.people.forEach((p, i) => {
+        const row = el("div", { class: "person" }, meeple(p.claimed ? "var(--line)" : COLORS[i % COLORS.length]),
+          el("div", { class: "name" }, p.name), el("div", { class: "acts" }));
+        if (p.claimed) row.lastChild.append(el("span", { class: "muted", style: "font-size:13px" }, "schon gewählt"));
+        else row.lastChild.append(armed("Das bin ich", "Wirklich " + p.name + "?", async b => {
+          b.disabled = true; pStatus.textContent = "";
+          try {
+            const res = await rpc("claim_person", { p_invite: code, p_person: p.id });
+            remember("me", res.token, { name: res.name, title: r.title, invite: code });
+            location.href = link("me", res.token) + "&neu=1";
+          } catch (e) { pStatus.textContent = e.message; b.disabled = false; }
+        }, "small"));
+        pick.append(row);
+      });
+      app.append(el("section", { class: "panel" }, el("h2", {}, "Wer bist du?"),
+        el("p", { class: "muted" }, "Jeder Name lässt sich nur einmal wählen. Steht bei deinem Namen „schon gewählt“, obwohl du es nicht warst, melde dich bei der Organisation."),
+        pick, pStatus));
+    }
+
+    if (r.drawn) {
+      if (!open.length) app.append(el("div", { class: "notice warn" }, el("p", {}, "In dieser Runde wurde schon gezogen. Neue Personen können erst beitreten, wenn die Organisation die Ziehung zurücksetzt.")));
+      return;
+    }
 
     const name = el("input", { id: "j-name", placeholder: "Dein Name", autocomplete: "given-name" });
     const status = el("p", { class: "status" });
@@ -249,9 +278,8 @@ footer { font-size: 13px; color: var(--muted); }
     };
     go.onclick = submit;
     name.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
-    app.append(el("section", { class: "panel" }, el("h2", {}, "Mitmachen"),
-      el("div", { class: "inline" }, name, go), status,
-      info.names.length ? el("div", { style: "display:grid;gap:6px" }, el("label", {}, "Schon dabei"), el("ul", { class: "chips" }, info.names.map(n => el("li", { class: "chip" }, n)))) : null));
+    app.append(el("section", { class: "panel" }, el("h2", {}, info.people.length ? "Nicht auf der Liste?" : "Mitmachen"),
+      el("div", { class: "inline" }, name, go), status));
   }
 
   // ---------- my page ----------
@@ -389,14 +417,14 @@ footer { font-size: 13px; color: var(--muted); }
     const byId = id => people.find(p => p.id === id);
     const reload = n => renderAdmin(token, n);
 
-    app.replaceChildren(header("Organisation", r.title, "Diese Seite ist nur für dich. Schick den Einladungslink an alle, warte bis alle ihre Spiele eingetragen haben, und zieh dann."));
+    app.replaceChildren(header("Organisation", r.title, "Diese Seite ist nur für dich. Trag alle Namen ein, stell die Paare ein, zieh und schick dann den Einladungslink an alle."));
     if (note) app.append(el("div", { class: "notice " + (note.warn ? "warn" : "ok") }, el("p", {}, note.text)));
 
     // invite
     const inviteUrl = link("join", r.invite_code);
     app.append(el("section", { class: "panel" }, el("h2", {}, "Einladen"),
       linkRow("Einladungslink für alle", inviteUrl,
-        "Wir wichteln Gesellschaftsspiele! Trag dich hier ein und notier, welche Spiele du schon hast: " + inviteUrl),
+        "Wir wichteln Gesellschaftsspiele! Öffne den Link, wähl deinen Namen und trag ein, welche Spiele du schon hast: " + inviteUrl),
       linkRow("Dein Organisations-Link (gut aufbewahren, nicht teilen)", link("admin", token))));
 
     // settings
@@ -415,7 +443,7 @@ footer { font-size: 13px; color: var(--muted); }
 
     // people
     const list = el("div", { class: "people" });
-    if (!people.length) list.append(el("p", { class: "muted" }, "Noch niemand beigetreten. Schick den Einladungslink herum."));
+    if (!people.length) list.append(el("p", { class: "muted" }, "Noch niemand dabei. Trag die Namen oben ein oder schick den Einladungslink herum."));
     people.forEach((p, i) => {
       const partner = p.partner_id && byId(p.partner_id);
       const details = el("div", { class: "wide", hidden: true });
@@ -431,6 +459,10 @@ footer { font-size: 13px; color: var(--muted); }
       details.append(el("div", { style: "display:grid;gap:10px;padding-top:6px" },
         el("label", {}, "Partner/in", sel),
         el("div", { class: "inline" }, linkBtn,
+          p.claimed ? armed("Namen freigeben", "Wirklich? Der alte Link wird ungültig", async () => {
+            try { await rpc("admin_unclaim", { p_admin: token, p_person: p.id }); reload({ text: p.name + " ist wieder frei und kann über den Einladungslink neu gewählt werden." }); }
+            catch (e) { reload({ warn: true, text: e.message }); }
+          }, "small") : null,
           r.drawn ? null : armed("Entfernen", "Wirklich entfernen?", async () => {
             try { await rpc("admin_remove", { p_admin: token, p_person: p.id }); reload(); } catch (e) { reload({ warn: true, text: e.message }); }
           })),
@@ -439,12 +471,31 @@ footer { font-size: 13px; color: var(--muted); }
       toggle.onclick = () => { details.hidden = !details.hidden; toggle.setAttribute("aria-expanded", String(!details.hidden)); };
       list.append(el("div", { class: "person" }, meeple(COLORS[i % COLORS.length]),
         el("div", { style: "min-width:0" }, el("div", { class: "name" }, p.name),
-          el("div", { class: "meta" }, p.games + (p.games === 1 ? " Spiel" : " Spiele") + " eingetragen",
+          el("div", { class: "meta" }, (p.claimed ? "dabei · " : "Name noch nicht gewählt · ") + p.games + (p.games === 1 ? " Spiel" : " Spiele") + " eingetragen",
             partner ? el("span", { class: "couple" }, " · ♥ " + partner.name) : null)),
         el("div", { class: "acts" }, toggle), details));
     });
+    let addBox = null;
+    if (!r.drawn) {
+      const names = el("textarea", { id: "a-names", rows: "3", placeholder: "Anna, Ben, Clara\noder ein Name pro Zeile" });
+      const addStatus = el("p", { class: "status" });
+      const addBtn = el("button", {}, "Namen eintragen");
+      addBtn.onclick = async () => {
+        const list = names.value.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+        if (!list.length) return;
+        addBtn.disabled = true;
+        try {
+          const n = await rpc("admin_add_people", { p_admin: token, p_names: list });
+          reload({ text: n + (n === 1 ? " Name eingetragen." : " Namen eingetragen.") + (n < list.length ? " Doppelte Namen habe ich übersprungen." : "") + " Paare stellst du unter „Bearbeiten“ ein." });
+        } catch (e) { addStatus.textContent = e.message; addBtn.disabled = false; }
+      };
+      addBox = el("div", { style: "display:grid;gap:8px" },
+        el("label", { for: "a-names" }, "Namen vorab eintragen. Alle wählen dann über den Einladungslink ihren Namen."),
+        names, el("div", { class: "inline" }, addBtn), addStatus);
+    }
     app.append(el("section", { class: "panel" },
       el("div", { class: "panel-head" }, el("h2", {}, "Mitspielende"), el("span", { class: "muted" }, people.length + (people.length === 1 ? " Person" : " Personen"))),
+      ...(addBox ? [addBox] : []),
       list,
       el("div", { class: "inline" }, el("button", { class: "small", onclick: () => reload() }, "Aktualisieren"))));
 
@@ -475,7 +526,7 @@ footer { font-size: 13px; color: var(--muted); }
         el("label", { style: "display:flex;gap:8px;align-items:center;color:var(--ink);font-weight:500" }, noPairs, "Keine Gegenseitigkeit (A beschenkt B und B beschenkt A)"),
         el("div", { class: "inline" }, go),
         people.length < 3 ? el("p", { class: "muted" }, "Für eine Ziehung braucht ihr mindestens drei Personen.") : null,
-        el("p", { class: "muted", style: "font-size:13px" }, "Nach der Ziehung kann niemand mehr beitreten und Paare lassen sich nicht mehr ändern, bis du die Ziehung zurücksetzt.")
+        el("p", { class: "muted", style: "font-size:13px" }, "Du kannst ziehen, bevor alle ihren Namen gewählt haben: Wer später kommt, sieht die Zuteilung sofort. Nach der Ziehung kommen keine neuen Namen dazu und Paare lassen sich nicht mehr ändern, bis du die Ziehung zurücksetzt.")
       ].filter(Boolean));
     }
     app.append(draw, el("footer", {}, el("a", { href: BASE }, "Startseite")));

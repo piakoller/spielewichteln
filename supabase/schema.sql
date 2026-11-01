@@ -29,6 +29,8 @@ create table if not exists participants (
   created_at timestamptz not null default now()
 );
 create index if not exists participants_round_idx on participants(round_id);
+-- Gesetzt, sobald eine Person ihren Namen gewählt hat (oder selbst beigetreten ist).
+alter table participants add column if not exists claimed_at timestamptz;
 
 alter table rounds enable row level security;
 alter table participants enable row level security;
@@ -94,7 +96,25 @@ begin
   select * into r from rounds where invite_code = p_invite;
   if not found then raise exception 'Diese Runde gibt es nicht. Prüf den Einladungslink.'; end if;
   return json_build_object('round', _round_json(r),
-    'names', coalesce((select json_agg(name order by created_at) from participants where round_id = r.id), '[]'));
+    'people', coalesce((select json_agg(json_build_object('id', id, 'name', name, 'claimed', claimed_at is not null) order by created_at)
+                          from participants where round_id = r.id), '[]'));
+end $$;
+
+-- Eine von der Organisation eingetragene Person wählt ihren Namen und bekommt ihren persönlichen Link.
+-- Jeder Name lässt sich nur einmal wählen; die Organisation kann ihn wieder freigeben.
+create or replace function claim_person(p_invite text, p_person uuid)
+returns json language plpgsql security definer set search_path = public as $$
+declare r rounds; p participants;
+begin
+  select * into r from rounds where invite_code = p_invite;
+  if not found then raise exception 'Diese Runde gibt es nicht. Prüf den Einladungslink.'; end if;
+  select * into p from participants where id = p_person and round_id = r.id for update;
+  if not found then raise exception 'Diesen Namen gibt es in der Runde nicht mehr. Lade die Seite neu.'; end if;
+  if p.claimed_at is not null then
+    raise exception 'Der Name % wurde schon gewählt. Warst du das nicht, melde dich bei der Organisation.', p.name;
+  end if;
+  update participants set claimed_at = now() where id = p.id;
+  return json_build_object('token', p.token, 'name', p.name);
 end $$;
 
 create or replace function join_round(p_invite text, p_name text)
@@ -109,7 +129,7 @@ begin
     raise exception 'Den Namen % gibt es schon in dieser Runde. Nimm z. B. noch den Anfangsbuchstaben des Nachnamens dazu.', n;
   end if;
   t := new_token(24);
-  insert into participants (round_id, name, token) values (r.id, n, t);
+  insert into participants (round_id, name, token, claimed_at) values (r.id, n, t, now());
   return json_build_object('token', t);
 end $$;
 
@@ -167,7 +187,8 @@ begin
   r := _admin(p_admin);
   return json_build_object('round', _round_json(r),
     'people', coalesce((select json_agg(json_build_object('id', id, 'name', name, 'partner_id', partner_id,
-                                                          'games', cardinality(games), 'token', token) order by created_at)
+                                                          'games', cardinality(games), 'token', token,
+                                                          'claimed', claimed_at is not null) order by created_at)
                           from participants where round_id = r.id), '[]'));
 end $$;
 
@@ -189,6 +210,32 @@ begin
   r := _admin(p_admin);
   if r.drawn_at is not null then raise exception 'Setz zuerst die Ziehung zurück.'; end if;
   perform _link_partner(r.id, p_person, p_partner);
+  return true;
+end $$;
+
+create or replace function admin_add_people(p_admin text, p_names text[])
+returns integer language plpgsql security definer set search_path = public as $$
+declare r rounds; n text; added int := 0;
+begin
+  select * into r from rounds where admin_token = p_admin for update;
+  if not found then raise exception 'Organisations-Link ungültig.'; end if;
+  if r.drawn_at is not null then raise exception 'Setz zuerst die Ziehung zurück.'; end if;
+  foreach n in array coalesce(p_names, '{}') loop
+    n := left(trim(n), 40);
+    continue when n = '' or exists (select 1 from participants where round_id = r.id and lower(name) = lower(n));
+    insert into participants (round_id, name, token, created_at) values (r.id, n, new_token(24), clock_timestamp());
+    added := added + 1;
+  end loop;
+  return added;
+end $$;
+
+-- Gibt einen gewählten Namen wieder frei. Der alte persönliche Link wird dabei ungültig.
+create or replace function admin_unclaim(p_admin text, p_person uuid)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare r rounds;
+begin
+  r := _admin(p_admin);
+  update participants set claimed_at = null, token = new_token(24) where id = p_person and round_id = r.id;
   return true;
 end $$;
 
@@ -245,15 +292,17 @@ revoke execute on function new_token(int), _round_json(rounds), _admin(text), _l
   from public, anon, authenticated;
 
 revoke execute on function
-  create_round(text, text, date), round_info(text), join_round(text, text),
+  create_round(text, text, date), round_info(text), join_round(text, text), claim_person(text, uuid),
   me(text), update_me(text, text[], text), set_partner(text, uuid),
   admin_overview(text), admin_update_round(text, text, text, date), admin_set_partner(text, uuid, uuid),
-  admin_remove(text, uuid), admin_reset_draw(text), admin_save_draw(text, json)
+  admin_remove(text, uuid), admin_reset_draw(text), admin_save_draw(text, json),
+  admin_add_people(text, text[]), admin_unclaim(text, uuid)
   from public;
 
 grant execute on function
-  create_round(text, text, date), round_info(text), join_round(text, text),
+  create_round(text, text, date), round_info(text), join_round(text, text), claim_person(text, uuid),
   me(text), update_me(text, text[], text), set_partner(text, uuid),
   admin_overview(text), admin_update_round(text, text, text, date), admin_set_partner(text, uuid, uuid),
-  admin_remove(text, uuid), admin_reset_draw(text), admin_save_draw(text, json)
+  admin_remove(text, uuid), admin_reset_draw(text), admin_save_draw(text, json),
+  admin_add_people(text, text[]), admin_unclaim(text, uuid)
   to anon, authenticated;
